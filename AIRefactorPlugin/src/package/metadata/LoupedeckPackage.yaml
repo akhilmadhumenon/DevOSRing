@@ -3,11 +3,11 @@
 # ==================================================================================================
 
 type: plugin4
-name: AIRefactor
-displayName: DevOS - AI Refactor
+name: AIRefactorV2
+displayName: AI Refactor v2
 description: One press to refactor the active file (or selection) in VS Code / Cursor / Antigravity using your configured LLM, with a Roslyn-based fallback when no API key is set.
-pluginFileName: AIRefactorPlugin.dll
-version: 1.0.0
+pluginFileName: AIRefactorPluginV2.dll
+version: 2.0.0
 author: DevOSRing
 copyright: Copyright (c) 2026 DevOSRing. All rights reserved.
 

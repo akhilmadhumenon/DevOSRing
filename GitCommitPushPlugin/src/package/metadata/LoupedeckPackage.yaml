@@ -3,11 +3,11 @@
 # ==================================================================================================
 
 type: plugin4
-name: GitCommitPush
-displayName: DevOS - Deploy
+name: GitCommitPushV2
+displayName: Git Commit & Push v2
 description: One press to stage all changes in the active workspace, generate an AI Conventional Commits message (with deterministic fallback when no LLM is configured), commit, and push to origin (auto --set-upstream on first push).
-pluginFileName: GitCommitPushPlugin.dll
-version: 1.0.0
+pluginFileName: GitCommitPushPluginV2.dll
+version: 2.0.0
 author: DevOSRing
 copyright: Copyright (c) 2026 DevOSRing. All rights reserved.
 

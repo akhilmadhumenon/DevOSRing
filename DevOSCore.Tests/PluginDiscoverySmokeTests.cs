@@ -17,10 +17,10 @@ public class PluginDiscoverySmokeTests
 {
     private static readonly (string AssemblyName, string ExpectedActionType)[] Plugins =
     {
-        ("AIRefactorPlugin.dll",    "Loupedeck.AIRefactorPlugin.Actions.AIRefactorAction"),
-        ("TestActionPlugin.dll",    "Loupedeck.TestActionPlugin.Actions.TestAction"),
-        ("ReviewActionPlugin.dll",  "Loupedeck.ReviewActionPlugin.Actions.ReviewAction"),
-        ("GitCommitPushPlugin.dll", "Loupedeck.GitCommitPushPlugin.Actions.DeployAction"),
+        ("AIRefactorPluginV2.dll",    "Loupedeck.AIRefactorPlugin.Actions.AIRefactorAction"),
+        ("TestActionPluginV2.dll",    "Loupedeck.TestActionPlugin.Actions.TestAction"),
+        ("ReviewActionPluginV2.dll",  "Loupedeck.ReviewActionPlugin.Actions.ReviewAction"),
+        ("GitCommitPushPluginV2.dll", "Loupedeck.GitCommitPushPlugin.Actions.DeployAction"),
     };
 
     [Fact]

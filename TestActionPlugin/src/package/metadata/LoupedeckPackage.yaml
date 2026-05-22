@@ -3,11 +3,11 @@
 # ==================================================================================================
 
 type: plugin4
-name: TestAction
-displayName: DevOS - Run Tests
+name: TestActionV2
+displayName: Run Tests v2
 description: One press to run the test suite for the workspace open in your IDE. Auto-detects dotnet, npm/pnpm/yarn, pytest, cargo, go, maven, and gradle projects, and surfaces pass/fail counts on the device.
-pluginFileName: TestActionPlugin.dll
-version: 1.0.0
+pluginFileName: TestActionPluginV2.dll
+version: 2.0.0
 author: DevOSRing
 copyright: Copyright (c) 2026 DevOSRing. All rights reserved.
 

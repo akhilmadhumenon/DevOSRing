@@ -27,6 +27,16 @@ dist/*
 # Companion runtime data (created at user home, not in repo, but keep just in case)
 .devos/
 
+# Secrets - never commit
+.env
+.env.*
+!.env.example
+
+# Secrets
+.env
+.env.*
+!.env.example
+
 # Editor / OS
 .DS_Store
 Thumbs.db

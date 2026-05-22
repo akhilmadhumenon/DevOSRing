@@ -3,11 +3,11 @@
 # ==================================================================================================
 
 type: plugin4
-name: ReviewAction
-displayName: DevOS - AI Review
+name: ReviewActionV2
+displayName: AI Review v2
 description: One press to AI-review the staged (or unstaged) git diff of the workspace open in your IDE. Renders the review as Markdown in a VS Code webview, with a diff-aware canned fallback when no LLM is configured.
-pluginFileName: ReviewActionPlugin.dll
-version: 1.0.0
+pluginFileName: ReviewActionPluginV2.dll
+version: 2.0.0
 author: DevOSRing
 copyright: Copyright (c) 2026 DevOSRing. All rights reserved.
 

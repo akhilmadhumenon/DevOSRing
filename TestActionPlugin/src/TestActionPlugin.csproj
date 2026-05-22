@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Loupedeck.TestActionPlugin</RootNamespace>
-    <AssemblyName>TestActionPlugin</AssemblyName>
+    <AssemblyName>TestActionPluginV2</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
 
@@ -13,7 +13,7 @@
     <BaseOutputPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\bin\'))</BaseOutputPath>
     <OutputPath>$(BaseOutputPath)$(Configuration)\bin\</OutputPath>
 
-    <PluginShortName>TestAction</PluginShortName>
+    <PluginShortName>TestActionV2</PluginShortName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,13 +36,13 @@
 
   <Target Name="LinkAndReload" AfterTargets="CopyPackage" Condition="'$(DEVOS_SKIP_LINK)' != 'true'">
     <MakeDir Directories="$(PluginDir)" />
-    <WriteLinesToFile File="$(PluginDir)$(MSBuildProjectName).link" Lines="$(BaseOutputPath)$(Configuration)\" Overwrite="true" />
+    <WriteLinesToFile File="$(PluginDir)$(AssemblyName).link" Lines="$(BaseOutputPath)$(Configuration)\" Overwrite="true" />
     <Exec Condition="$(OS) == 'Windows_NT'" Command="start loupedeck:plugin/$(PluginShortName)/reload" ContinueOnError="true" />
     <Exec Condition="$(OS) != 'Windows_NT'" Command="open loupedeck:plugin/$(PluginShortName)/reload" ContinueOnError="true" />
   </Target>
 
   <Target Name="PluginClean" AfterTargets="CoreClean">
-    <Delete Files="$(PluginDir)$(MSBuildProjectName).link" ContinueOnError="true" />
+    <Delete Files="$(PluginDir)$(AssemblyName).link" ContinueOnError="true" />
     <RemoveDir Directories="$(OutputPath)..\" ContinueOnError="true" />
   </Target>
 
