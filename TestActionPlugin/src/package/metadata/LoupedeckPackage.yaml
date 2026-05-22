@@ -1,0 +1,26 @@
+# ==================================================================================================
+# DevOSRing - Run Tests
+# ==================================================================================================
+
+type: plugin4
+name: TestAction
+displayName: DevOS - Run Tests
+description: One press to run the test suite for the workspace open in your IDE. Auto-detects dotnet, npm/pnpm/yarn, pytest, cargo, go, maven, and gradle projects, and surfaces pass/fail counts on the device.
+pluginFileName: TestActionPlugin.dll
+version: 1.0.0
+author: DevOSRing
+copyright: Copyright (c) 2026 DevOSRing. All rights reserved.
+
+pluginFolderMac: bin
+
+supportedDevices:
+    - LoupedeckCtFamily
+
+pluginCapabilities: []
+
+minimumLoupedeckVersion: 6.0
+
+license: MIT
+licenseUrl: https://opensource.org/licenses/MIT
+supportPageUrl: https://github.com/akhil/DevOSRing/issues
+homePageUrl:    https://github.com/akhil/DevOSRing

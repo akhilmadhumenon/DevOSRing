@@ -1,0 +1,64 @@
+{
+  "name": "devos-companion",
+  "displayName": "DevOS Companion",
+  "description": "Exposes the active editor's file, selection, workspace, and git state to the DevOSRing plugins on MX Master 4's Actions Ring. Works in VS Code, Cursor, and Antigravity.",
+  "version": "1.0.0",
+  "publisher": "devosring",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akhil/DevOSRing.git",
+    "directory": "devos-companion"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Other"],
+  "keywords": ["devos", "loupedeck", "mx master", "logitech", "ai"],
+  "main": "./out/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "devos.restart",
+        "title": "DevOS: Restart Companion Server",
+        "category": "DevOS"
+      },
+      {
+        "command": "devos.status",
+        "title": "DevOS: Show Companion Status",
+        "category": "DevOS"
+      }
+    ],
+    "configuration": {
+      "title": "DevOS Companion",
+      "properties": {
+        "devos.port": {
+          "type": "number",
+          "default": 0,
+          "description": "Fixed loopback port for the companion server. 0 = pick an ephemeral port (recommended)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p .",
+    "watch": "tsc -p . --watch",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "package": "vsce package --out ../dist/devos-companion-$npm_package_version.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.80.0",
+    "@types/supertest": "^6.0.2",
+    "@vscode/vsce": "^2.24.0",
+    "supertest": "^6.3.4",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "dependencies": {
+    "marked": "^12.0.0"
+  }
+}

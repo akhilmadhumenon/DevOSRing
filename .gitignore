@@ -1,0 +1,49 @@
+# Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.cache
+
+# Node / VS Code extension
+node_modules/
+*.vsix
+.devcache/
+out/
+dist-vsce/
+
+# DevOSRing build artefacts
+dist/*
+!dist/.gitkeep
+
+# Companion runtime data (created at user home, not in repo, but keep just in case)
+.devos/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+
+# Logs / temp
+*.log
+*.tmp
+*.flag
+*.command
+
+# Test coverage
+coverage/
+TestResults/
+*.coverage
+*.coveragexml

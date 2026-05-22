@@ -1,0 +1,35 @@
+# ==================================================================================================
+# DevOSRing - AI Refactor
+# ==================================================================================================
+
+type: plugin4
+name: AIRefactor
+displayName: DevOS - AI Refactor
+description: One press to refactor the active file (or selection) in VS Code / Cursor / Antigravity using your configured LLM, with a Roslyn-based fallback when no API key is set.
+pluginFileName: AIRefactorPlugin.dll
+version: 1.0.0
+author: DevOSRing
+copyright: Copyright (c) 2026 DevOSRing. All rights reserved.
+
+# ==================================================================================================
+# PLUGIN PROPERTIES
+# ==================================================================================================
+
+pluginFolderMac: bin
+#pluginFolderWin: bin
+
+supportedDevices:
+    - LoupedeckCtFamily
+
+pluginCapabilities: []
+
+minimumLoupedeckVersion: 6.0
+
+# ==================================================================================================
+# MARKETPLACE
+# ==================================================================================================
+
+license: MIT
+licenseUrl: https://opensource.org/licenses/MIT
+supportPageUrl: https://github.com/akhil/DevOSRing/issues
+homePageUrl:    https://github.com/akhil/DevOSRing

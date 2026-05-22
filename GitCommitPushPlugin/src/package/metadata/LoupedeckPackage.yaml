@@ -1,0 +1,26 @@
+# ==================================================================================================
+# DevOSRing - Deploy (Git Commit & Push)
+# ==================================================================================================
+
+type: plugin4
+name: GitCommitPush
+displayName: DevOS - Deploy
+description: One press to stage all changes in the active workspace, generate an AI Conventional Commits message (with deterministic fallback when no LLM is configured), commit, and push to origin (auto --set-upstream on first push).
+pluginFileName: GitCommitPushPlugin.dll
+version: 1.0.0
+author: DevOSRing
+copyright: Copyright (c) 2026 DevOSRing. All rights reserved.
+
+pluginFolderMac: bin
+
+supportedDevices:
+    - LoupedeckCtFamily
+
+pluginCapabilities: []
+
+minimumLoupedeckVersion: 6.0
+
+license: MIT
+licenseUrl: https://opensource.org/licenses/MIT
+supportPageUrl: https://github.com/akhil/DevOSRing/issues
+homePageUrl:    https://github.com/akhil/DevOSRing

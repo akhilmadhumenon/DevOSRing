@@ -1,0 +1,26 @@
+# ==================================================================================================
+# DevOSRing - AI Review
+# ==================================================================================================
+
+type: plugin4
+name: ReviewAction
+displayName: DevOS - AI Review
+description: One press to AI-review the staged (or unstaged) git diff of the workspace open in your IDE. Renders the review as Markdown in a VS Code webview, with a diff-aware canned fallback when no LLM is configured.
+pluginFileName: ReviewActionPlugin.dll
+version: 1.0.0
+author: DevOSRing
+copyright: Copyright (c) 2026 DevOSRing. All rights reserved.
+
+pluginFolderMac: bin
+
+supportedDevices:
+    - LoupedeckCtFamily
+
+pluginCapabilities: []
+
+minimumLoupedeckVersion: 6.0
+
+license: MIT
+licenseUrl: https://opensource.org/licenses/MIT
+supportPageUrl: https://github.com/akhil/DevOSRing/issues
+homePageUrl:    https://github.com/akhil/DevOSRing
