@@ -27,9 +27,11 @@ public class AIRefactorAction : PluginActionBase
         var settings = LlmSettings.Load(plugin);
 
         using var companion = new CompanionClient();
-        if (!await companion.EnsureConnectedAsync(ct))
+        var wakeProgress = new Progress<string>(stage => SetState(ActionState.Busy, stage));
+        if (!await companion.EnsureConnectedAsync(ct, autoLaunch: true, wakeProgress))
         {
-            return ActionOutcome.Fail("Companion offline");
+            PluginLog.Warning("[AIRefactor] companion still offline after auto-wake — open Cursor and reload the window");
+            return ActionOutcome.Fail("Open Cursor");
         }
 
         SetState(ActionState.Busy, "Reading file");
@@ -46,10 +48,14 @@ public class AIRefactorAction : PluginActionBase
         var language = ctx.Language ?? Languages.FromPath(ctx.ActiveFilePath);
 
         string refactored;
+        bool usedLlm;
         if (settings.IsConfigured)
         {
+            PluginLog.Info($"[AIRefactor] Calling LLM: endpoint={settings.Endpoint}, model={settings.Model}, " +
+                           $"language={language}, inputChars={input.Length}, selection={isSelection}");
             SetState(ActionState.Busy, "Calling AI");
             using var llm = new LlmClient(settings);
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 var raw = await llm.ChatAsync(
@@ -57,19 +63,27 @@ public class AIRefactorAction : PluginActionBase
                     LlmPrompts.RefactorUser(language, input, isSelection),
                     temperature: 0.1,
                     ct: ct);
+                sw.Stop();
+                PluginLog.Info($"[AIRefactor] LLM ok in {sw.ElapsedMilliseconds}ms, {raw.Length} chars");
                 refactored = LlmExtraction.ExtractCode(raw);
+                usedLlm = true;
             }
             catch (LlmRequestException ex)
             {
-                PluginLog.Warning(ex, "[AIRefactor] LLM failed, falling back to canned");
+                sw.Stop();
+                PluginLog.Warning(ex, $"[AIRefactor] LLM failed in {sw.ElapsedMilliseconds}ms (HTTP {ex.StatusCode}), falling back to canned");
                 await companion.NotifyAsync("warning", $"DevOS: LLM call failed ({ex.StatusCode}). Using canned refactor.", ct);
                 refactored = CannedRefactor.Apply(language, input);
+                usedLlm = false;
             }
         }
         else
         {
+            PluginLog.Warning($"[AIRefactor] LLM not configured (endpoint={settings.Endpoint}, model={settings.Model}, " +
+                              $"apiKeyLen={settings.ApiKey.Length}); using canned Roslyn refactor");
             SetState(ActionState.Busy, "Canned");
             refactored = CannedRefactor.Apply(language, input);
+            usedLlm = false;
         }
 
         if (string.IsNullOrWhiteSpace(refactored) || refactored.Equals(input, StringComparison.Ordinal))
@@ -87,13 +101,14 @@ public class AIRefactorAction : PluginActionBase
         {
             Path = ctx.ActiveFilePath,
             RefactoredText = newFileContent,
-            Title = settings.IsConfigured ? "DevOS AI Refactor" : "DevOS Canned Refactor",
+            Title = usedLlm ? "DevOS AI Refactor" : "DevOS Canned Refactor",
         }, ct);
 
-        if (diff?.Accepted == true)
-        {
-            return ActionOutcome.Ok("Applied");
-        }
-        return ActionOutcome.Ok("Reviewed");
+        PluginLog.Info($"[AIRefactor] Diff opened (source={(usedLlm ? "llm" : "canned")}, " +
+                       $"outputChars={refactored.Length}); user will accept/discard via Cursor Command Palette");
+        // We deliberately don't block the button on the user's accept/discard click —
+        // the companion's diff route returns immediately and the user takes their time
+        // in Cursor (`DevOS: Accept Refactor` / `DevOS: Discard Refactor`).
+        return ActionOutcome.Ok(usedLlm ? "AI diff" : "Canned diff");
     }
 }

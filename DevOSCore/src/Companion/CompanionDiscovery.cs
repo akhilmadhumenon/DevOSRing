@@ -58,4 +58,33 @@ public sealed record CompanionInfo
     [JsonPropertyName("pid")] public int Pid { get; init; }
     [JsonPropertyName("version")] public string Version { get; init; } = "0.0.0";
     [JsonPropertyName("ide")] public string Ide { get; init; } = "unknown";
+
+    /// <summary>"starting" | "ready" | "stopped". Older companions may omit this; treat empty as "ready".</summary>
+    [JsonPropertyName("state")] public string State { get; init; } = "ready";
+
+    /// <summary>Epoch milliseconds when the server first bound.</summary>
+    [JsonPropertyName("startedAt")] public long StartedAt { get; init; }
+
+    /// <summary>Epoch milliseconds, updated by the extension's heartbeat timer every few seconds.</summary>
+    [JsonPropertyName("heartbeatAt")] public long HeartbeatAt { get; init; }
+
+    /// <summary>Epoch milliseconds when deactivate() ran. Only set when State == "stopped".</summary>
+    [JsonPropertyName("stoppedAt")] public long? StoppedAt { get; init; }
+
+    /// <summary>True only when the doc represents a currently-serving companion (port + token + ready + recent heartbeat).</summary>
+    [JsonIgnore]
+    public bool IsLive
+    {
+        get
+        {
+            if (Port <= 0 || string.IsNullOrWhiteSpace(Token)) return false;
+            if (!string.Equals(State, "ready", StringComparison.OrdinalIgnoreCase)) return false;
+            // No heartbeat field (older companion) → trust it, fall back to ping.
+            if (HeartbeatAt <= 0) return true;
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            // 60s window covers the 5s heartbeat plus generous slack for an extension host that
+            // was briefly paused (debugger, GC, sleep).
+            return (nowMs - HeartbeatAt) < 60_000;
+        }
+    }
 }

@@ -21,7 +21,10 @@ export interface DiffRequest {
 }
 
 export interface DiffResponse {
+  /** True if the user has already accepted; usually false because accept happens async. */
   accepted: boolean;
+  /** True when the diff view was opened in the IDE. */
+  opened?: boolean;
 }
 
 export interface ApplyRequest {
@@ -39,10 +42,20 @@ export interface NotifyRequest {
   message: string;
 }
 
+export type CompanionState = 'starting' | 'ready' | 'stopped';
+
 export interface DiscoveryDoc {
   port: number;
   token: string;
   pid: number;
   version: string;
   ide: string;
+  /** Lifecycle state — plugins refuse to use anything other than "ready". */
+  state: CompanionState;
+  /** Epoch ms when the server first bound. */
+  startedAt: number;
+  /** Epoch ms updated every few seconds while the extension is alive. */
+  heartbeatAt: number;
+  /** Epoch ms when deactivate() ran. Only present when state === "stopped". */
+  stoppedAt?: number;
 }

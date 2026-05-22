@@ -85,23 +85,24 @@ export const diffRoute: Handler = async (req, res) => {
     preview: false,
   });
 
-  // Offer accept/discard buttons. We deliberately use a notification (not a code lens)
-  // so it stays in view while the user reads the diff.
-  const decision = await new Promise<boolean>((resolve) => {
-    pendingDecisions.set(refactorUri.toString(), resolve);
-    vscode.window
-      .showInformationMessage('DevOS: apply this refactor?', 'Apply', 'Discard')
-      .then(async (choice) => {
-        if (choice === 'Apply') {
-          await vscode.commands.executeCommand('devos.acceptRefactor', refactorUri.toString());
-        } else {
-          await vscode.commands.executeCommand('devos.discardRefactor', refactorUri.toString());
-        }
-      });
-  });
-
-  const response: DiffResponse = { accepted: decision };
+  // Respond to the plugin IMMEDIATELY — the button shouldn't be tied up waiting for
+  // the user to click Apply/Discard. The decision happens asynchronously via the
+  // notification or the Command Palette ("DevOS: Accept Refactor" / "Discard").
+  const response: DiffResponse = { accepted: false, opened: true };
   sendJson(res, 200, response);
+
+  // Fire-and-forget the notification with action buttons.
+  vscode.window
+    .showInformationMessage('DevOS: apply this refactor?', 'Apply', 'Discard')
+    .then(async (choice) => {
+      if (choice === 'Apply') {
+        await vscode.commands.executeCommand('devos.acceptRefactor', refactorUri.toString());
+      } else if (choice === 'Discard') {
+        await vscode.commands.executeCommand('devos.discardRefactor', refactorUri.toString());
+      }
+      // If the user dismissed the notification, the diff stays open and they can
+      // run the commands from the Command Palette whenever they're ready.
+    });
 };
 
 function decodeFilePath(refactorUriString: string): string {

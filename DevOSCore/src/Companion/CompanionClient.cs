@@ -16,25 +16,51 @@ namespace DevOSRing.Core.Companion;
 public sealed class CompanionClient : IDisposable
 {
     private readonly HttpClient _http;
-    private readonly Func<Task<CompanionInfo?>> _discover;
+    private readonly Func<HttpClient, TimeSpan?, bool, IProgress<string>?, CancellationToken, Task<CompanionInfo?>> _awake;
     private CompanionInfo? _info;
     private readonly SemaphoreSlim _discoverLock = new(1, 1);
 
-    public CompanionClient(HttpClient? http = null, Func<Task<CompanionInfo?>>? discover = null)
+    public CompanionClient(
+        HttpClient? http = null,
+        Func<HttpClient, TimeSpan?, bool, IProgress<string>?, CancellationToken, Task<CompanionInfo?>>? awake = null)
     {
         _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        _discover = discover ?? CompanionDiscovery.ReadAsync;
+        _awake = awake ?? CompanionLauncher.AwakeAsync;
     }
 
     public bool IsAvailable => _info is { Port: > 0 };
 
-    public async Task<bool> EnsureConnectedAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Ensures the companion is up and responsive. Strategy:
+    /// <list type="number">
+    ///   <item>If we already have a verified info from this session, ping it. If the ping
+    ///         succeeds, reuse it.</item>
+    ///   <item>Otherwise, ask <see cref="CompanionLauncher"/> to wake the IDE and poll for the
+    ///         companion to come online (default 15s budget).</item>
+    /// </list>
+    /// Pass <paramref name="autoLaunch"/>=false to disable opening the IDE (e.g. for a quick
+    /// diagnostic that should fail fast).
+    /// </summary>
+    public async Task<bool> EnsureConnectedAsync(
+        CancellationToken ct = default,
+        bool autoLaunch = true,
+        IProgress<string>? progress = null,
+        TimeSpan? wakeTimeout = null)
     {
-        if (_info is { Port: > 0 }) return true;
         await _discoverLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            _info ??= await _discover().ConfigureAwait(false);
+            // Fast path: known info that still pings.
+            if (_info is { Port: > 0 } &&
+                await CompanionLauncher.PingAsync(_http, _info, ct).ConfigureAwait(false))
+            {
+                return true;
+            }
+
+            // Slow path: clear cached info, run the wake-up sequence.
+            _info = null;
+            var fresh = await _awake(_http, wakeTimeout, autoLaunch, progress, ct).ConfigureAwait(false);
+            _info = fresh;
             return _info is { Port: > 0 };
         }
         finally

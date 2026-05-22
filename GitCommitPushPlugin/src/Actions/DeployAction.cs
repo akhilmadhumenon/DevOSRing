@@ -31,9 +31,11 @@ public class DeployAction : PluginActionBase
         var settings = LlmSettings.Load(plugin);
 
         using var companion = new CompanionClient();
-        if (!await companion.EnsureConnectedAsync(ct))
+        var wakeProgress = new Progress<string>(stage => SetState(ActionState.Busy, stage));
+        if (!await companion.EnsureConnectedAsync(ct, autoLaunch: true, wakeProgress))
         {
-            return ActionOutcome.Fail("Companion offline");
+            PluginLog.Warning("[Deploy] companion still offline after auto-wake — open Cursor and reload the window");
+            return ActionOutcome.Fail("Open Cursor");
         }
 
         var ctx = await companion.GetContextAsync(ct);

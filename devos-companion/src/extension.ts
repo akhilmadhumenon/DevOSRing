@@ -1,10 +1,19 @@
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 import { startServer, ServerHandle } from './server';
-import { writeDiscovery, clearDiscovery, discoveryPath } from './discovery';
+import {
+  writeDiscovery,
+  updateDiscovery,
+  markStopped,
+  discoveryPath,
+} from './discovery';
+
+const HEARTBEAT_INTERVAL_MS = 5_000;
 
 let handle: ServerHandle | undefined;
 let statusBar: vscode.StatusBarItem | undefined;
+let heartbeatTimer: NodeJS.Timeout | undefined;
+let startedAt = 0;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -34,13 +43,18 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
   try {
     handle = await startServer(context, token, desiredPort);
     const version = context.extension.packageJSON.version ?? '0.0.0';
+    startedAt = Date.now();
     await writeDiscovery({
       port: handle.port,
       token,
       pid: process.pid,
       version,
       ide: vscode.env.appName || 'unknown',
+      state: 'ready',
+      startedAt,
+      heartbeatAt: startedAt,
     });
+    startHeartbeat();
     if (statusBar) {
       statusBar.text = `$(plug) DevOS:${handle.port}`;
       statusBar.tooltip = `DevOS Companion v${version} on 127.0.0.1:${handle.port}\nDiscovery: ${discoveryPath()}`;
@@ -56,7 +70,11 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
 }
 
 async function stop(): Promise<void> {
-  await clearDiscovery();
+  stopHeartbeat();
+  // Mark stopped so the plugin-side auto-wake knows the extension was installed and just needs
+  // to be re-activated (e.g. via launching/focusing the IDE). We intentionally do NOT delete
+  // the file here — that used to cause "companion offline" right after a window reload.
+  await markStopped();
   if (!handle) return;
   await new Promise<void>((resolve) => handle!.server.close(() => resolve()));
   handle = undefined;
@@ -76,4 +94,20 @@ function showStatus(): void {
   vscode.window.showInformationMessage(
     `DevOS Companion listening on 127.0.0.1:${handle.port}. Discovery file: ${discoveryPath()}`,
   );
+}
+
+function startHeartbeat(): void {
+  stopHeartbeat();
+  heartbeatTimer = setInterval(() => {
+    void updateDiscovery({ heartbeatAt: Date.now() });
+  }, HEARTBEAT_INTERVAL_MS);
+  // Don't let the timer keep the extension host alive on shutdown.
+  heartbeatTimer.unref?.();
+}
+
+function stopHeartbeat(): void {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = undefined;
+  }
 }

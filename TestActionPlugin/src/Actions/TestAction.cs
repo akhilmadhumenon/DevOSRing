@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,10 +15,19 @@ namespace Loupedeck.TestActionPlugin.Actions;
 /// Press: detect the project type in the current workspace, run the right test
 /// command via <see cref="ProcessRunner"/>, parse the summary, surface pass/fail
 /// on the device button, and push the full log into a VS Code webview.
+///
+/// UX timeline:
+/// <list type="number">
+///   <item><b>Started</b> — IDE notification "Run Tests started — {kind}: `{cmd}` in `{workspace}`"</item>
+///   <item><b>Running</b> — button ticks "Running 5s", "Running 10s"… every 2s while the runner streams</item>
+///   <item><b>Completed</b> — IDE notification with PASSED/FAILED, counts, duration; plus the full
+///         output rendered as a webview (existing behavior)</item>
+/// </list>
 /// </summary>
 public class TestAction : PluginActionBase
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan TickerInterval = TimeSpan.FromSeconds(2);
     protected override TimeSpan RunTimeout => TestTimeout;
 
     public TestAction()
@@ -27,9 +38,11 @@ public class TestAction : PluginActionBase
     protected override async Task<ActionOutcome> ExecuteAsync(CancellationToken ct)
     {
         using var companion = new CompanionClient();
-        if (!await companion.EnsureConnectedAsync(ct))
+        var wakeProgress = new Progress<string>(stage => SetState(ActionState.Busy, stage));
+        if (!await companion.EnsureConnectedAsync(ct, autoLaunch: true, wakeProgress))
         {
-            return ActionOutcome.Fail("Companion offline");
+            PluginLog.Warning("[Tests] companion still offline after auto-wake — open Cursor and reload the window");
+            return ActionOutcome.Fail("Open Cursor");
         }
 
         SetState(ActionState.Busy, "Detecting");
@@ -49,8 +62,20 @@ public class TestAction : PluginActionBase
             return ActionOutcome.Fail("Unknown project");
         }
 
+        // --- STARTED ---
+        var workspaceName = Path.GetFileName(root.TrimEnd('/', '\\'));
+        var commandLine   = string.IsNullOrWhiteSpace(plan.Arguments) ? plan.FileName : $"{plan.FileName} {plan.Arguments}";
+        var startMsg = $"DevOS: Run Tests started — {plan.Kind}: `{commandLine}` in `{workspaceName}` (timeout {TestTimeout.TotalMinutes:F0}m)";
+        PluginLog.Info($"[Tests] {startMsg}");
+        await companion.NotifyAsync("info", startMsg, ct);
+
+        // --- RUNNING ---
+        // Button shows the kind first, then a per-2s elapsed ticker so the user can see the
+        // run is actually progressing. The ticker stops as soon as the runner returns.
         SetState(ActionState.Busy, plan.Kind.ToString());
-        PluginLog.Info($"[Tests] Running {plan.FileName} {plan.Arguments} in {plan.WorkingDirectory}");
+        var runSw = Stopwatch.StartNew();
+        using var tickerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var ticker = StartTicker(tickerCts.Token, runSw);
 
         var runner = new ProcessRunner();
         ProcessResult result;
@@ -61,29 +86,72 @@ public class TestAction : PluginActionBase
         }
         catch (Exception ex)
         {
-            await companion.NotifyAsync("error", $"DevOS: failed to launch test command: {ex.Message}", ct);
+            tickerCts.Cancel();
+            try { await ticker; } catch { /* expected */ }
+            var msg = $"DevOS: failed to launch test command ({plan.Kind}: {plan.FileName}) — {ex.Message}";
+            PluginLog.Error(ex, $"[Tests] {msg}");
+            await companion.NotifyAsync("error", msg, ct);
             return ActionOutcome.Fail("Launch fail");
         }
+        finally
+        {
+            tickerCts.Cancel();
+            try { await ticker; } catch { /* expected */ }
+        }
+        runSw.Stop();
 
-        var summary = TestResultParser.Parse(result.StdOut, result.StdErr, result.ExitCode);
+        // --- COMPLETED ---
+        var summary  = TestResultParser.Parse(result.StdOut, result.StdErr, result.ExitCode);
         var markdown = BuildMarkdown(plan, result, summary);
         await companion.ShowReviewAsync(new ReviewRequest
         {
-            Title = "DevOS Test Results",
+            Title    = "DevOS Test Results",
             Markdown = markdown,
         }, ct);
 
+        var durSecs = result.Elapsed.TotalSeconds;
         if (result.Succeeded && summary.Failed == 0)
         {
-            await companion.NotifyAsync("info", $"DevOS: tests passed ({summary.Passed}/{summary.Total}) in {result.Elapsed.TotalSeconds:F1}s.", ct);
+            var msg = summary.HasAnyResult
+                ? $"DevOS: tests PASSED — {summary.Passed}/{summary.Total}" +
+                  (summary.Skipped > 0 ? $" ({summary.Skipped} skipped)" : "") +
+                  $" in {durSecs:F1}s — {plan.Kind}: `{commandLine}`"
+                : $"DevOS: tests PASSED in {durSecs:F1}s — {plan.Kind}: `{commandLine}` (no result count parsed; exit=0)";
+            PluginLog.Info($"[Tests] {msg}");
+            await companion.NotifyAsync("info", msg, ct);
             return ActionOutcome.Ok(summary.Short);
         }
         else
         {
-            await companion.NotifyAsync("error", $"DevOS: tests failed ({summary.Failed}/{summary.Total}).", ct);
+            var msg = summary.HasAnyResult
+                ? $"DevOS: tests FAILED — {summary.Failed} failed / {summary.Passed} passed / {summary.Total} total" +
+                  $" in {durSecs:F1}s — {plan.Kind}: `{commandLine}` (exit={result.ExitCode})"
+                : $"DevOS: tests FAILED — exit={result.ExitCode} in {durSecs:F1}s — {plan.Kind}: `{commandLine}`";
+            PluginLog.Warning($"[Tests] {msg}");
+            await companion.NotifyAsync("error", msg, ct);
             return ActionOutcome.Fail(summary.Short);
         }
     }
+
+    /// <summary>
+    /// Refreshes the device button label every <see cref="TickerInterval"/> with the elapsed
+    /// runtime so the user can see the suite is still progressing. Stops silently when the
+    /// linked token cancels (runner returned, errored, or user pressed cancel).
+    /// </summary>
+    private Task StartTicker(CancellationToken ct, Stopwatch sw) => Task.Run(async () =>
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(TickerInterval, ct);
+                if (ct.IsCancellationRequested) break;
+                var secs = (int)sw.Elapsed.TotalSeconds;
+                SetState(ActionState.Busy, $"Running {secs}s");
+            }
+        }
+        catch (OperationCanceledException) { /* expected on shutdown */ }
+    }, ct);
 
     private static string BuildMarkdown(TestPlan plan, ProcessResult result, TestSummary summary)
     {

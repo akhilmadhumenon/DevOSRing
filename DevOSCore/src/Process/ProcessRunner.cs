@@ -21,9 +21,13 @@ public sealed class ProcessRunner
         IDictionary<string, string>? environment = null,
         CancellationToken cancellationToken = default)
     {
+        // Resolve "dotnet" / "npm" / etc. to a full path because LogiPluginService
+        // inherits a stripped PATH when launched by macOS LaunchServices.
+        var resolved = BinaryResolver.Resolve(fileName);
+
         var psi = new ProcessStartInfo
         {
-            FileName = fileName,
+            FileName = resolved,
             Arguments = arguments,
             WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory,
             RedirectStandardOutput = true,
@@ -31,6 +35,10 @@ public sealed class ProcessRunner
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+
+        // Augment PATH so any sub-tools the child spawns (e.g. `dotnet test` calling
+        // out to `git`, or `npm test` calling node) can also be found.
+        AugmentPath(psi);
 
         if (environment != null)
         {
@@ -41,6 +49,26 @@ public sealed class ProcessRunner
         }
 
         return RunCoreAsync(psi, timeout ?? TimeSpan.FromMinutes(5), cancellationToken);
+    }
+
+    private static void AugmentPath(ProcessStartInfo psi)
+    {
+        var current = (psi.Environment.TryGetValue("PATH", out var existing) ? existing : null)
+                      ?? Environment.GetEnvironmentVariable("PATH")
+                      ?? string.Empty;
+
+        var sep = OperatingSystem.IsWindows() ? ';' : ':';
+        var have = new HashSet<string>(current.Split(sep, StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+        var additions = new List<string>();
+        foreach (var dir in BinaryResolver.ExtraPathDirs())
+        {
+            if (have.Add(dir)) additions.Add(dir);
+        }
+        if (additions.Count == 0) return;
+
+        psi.Environment["PATH"] = string.IsNullOrEmpty(current)
+            ? string.Join(sep, additions)
+            : current + sep + string.Join(sep, additions);
     }
 
     private static async Task<ProcessResult> RunCoreAsync(

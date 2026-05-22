@@ -32,7 +32,10 @@ public sealed record DiffRequest
 
 public sealed record DiffResponse
 {
+    /// <summary>True only if the user has *already* accepted; usually false because the diff route returns immediately.</summary>
     [JsonPropertyName("accepted")] public bool Accepted { get; init; }
+    /// <summary>True when the diff view was opened in the IDE.</summary>
+    [JsonPropertyName("opened")]   public bool Opened { get; init; }
 }
 
 public sealed record ApplyRequest
