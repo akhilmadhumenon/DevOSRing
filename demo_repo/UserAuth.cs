@@ -2,5 +2,15 @@ namespace DemoRepo;
 
 public class UserAuth
 {
-    public bool CheckUser(string user) => !string.IsNullOrWhiteSpace(user);
+    public bool CheckUser(string user)
+    {
+        if (user != null)
+        {
+            if (user.Length > 0)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }
